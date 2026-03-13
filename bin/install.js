@@ -1165,14 +1165,26 @@ function getMistralAdapterHeader() {
 ## A. AskUserQuestion → ask_user_question Mapping
 GSD workflows use \`AskUserQuestion\` (Claude Code syntax). Translate to Mistral Vibe \`ask_user_question\`:
 
-- **Open-ended / free-text question** (e.g. "What is your project name?"):
-  Call \`ask_user_question\` with ONLY the \`question\` parameter. Do NOT include an \`options\` key at all.
-  ✅ Correct: \`ask_user_question(question="What is your project name?")\`
-  ❌ Wrong: \`ask_user_question(question="...", options=[])\`
+\`ask_user_question\` takes a \`questions\` list. Each question object MUST have \`options\` with 2-4 items. Vibe automatically appends an "Other" option that allows free-text input.
+
+- **For open-ended questions** (e.g. "What is your project name?"):
+  Provide 2 placeholder options that cover common cases, so the user can either pick one or use "Other" to type freely.
+  ✅ Correct:
+  ask_user_question(questions=[{
+    "question": "What is your project name?",
+    "options": [
+      {"label": "my-project"},
+      {"label": "Enter a custom name (select Other)"}
+    ]
+  }])
+  ❌ Wrong — causes Pydantic validation error:
+  ask_user_question(questions=[{"question": "...", "options": None}])
+  ask_user_question(questions=[{"question": "...", "options": []}])
+  ask_user_question(questions=[{"question": "...", "options": [{"label": "only one"}]}])
 
 - **Multiple-choice question** (e.g. "Which framework?"):
   Call \`ask_user_question\` with \`question\` AND \`options\` containing at least 2 items.
-  ✅ Correct: \`ask_user_question(question="Which framework?", options=["React", "Vue", "Svelte"])\`
+  ✅ Correct: \`ask_user_question(questions=[{"question": "Which framework?", "options": [{"label": "React"}, {"label": "Vue"}, {"label": "Svelte"}]}])\`
 
 ## B. Task() → task Mapping
 GSD workflows use \`Task(...)\` (Claude Code syntax) to spawn subagents. Translate this to the Mistral Vibe \`task\` tool:
