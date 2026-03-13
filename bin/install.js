@@ -556,6 +556,9 @@ function convertClaudeCommandToCodexSkill(content, skillName) {
 
 function convertClaudeCommandToMistralSkill(content, skillName) {
   let converted = content.replace(/\/gsd:/g, '/gsd-');
+  // Fix the explorer agent name for Mistral Vibe
+  converted = converted.replace(/subagent_type="explorer"/g, 'subagent_type="explore"');
+
   const { frontmatter, body } = extractFrontmatterAndBody(converted);
   let description = `Run GSD workflow ${skillName}.`;
   let allowedTools = [];
@@ -1132,7 +1135,7 @@ function convertClaudeToMistralAgent(content) {
 
   const cleanDescription = toSingleLine(description);
 
-  const tomlContent = [
+  const tomlLines = [
     `display_name = "${name}"`,
     `description = "${cleanDescription}"`,
     `system_prompt_id = "${name}"`,
@@ -1140,7 +1143,13 @@ function convertClaudeToMistralAgent(content) {
     `auto_approve = false`,
     `disabled_tools = []`,
     `enabled_tools = ${JSON.stringify(tools)}`
-  ].join('\n') + '\n';
+  ];
+
+  // If this agent is used as a subagent (it's not the user's primary interface), mark it as subagent.
+  // We can assume all GSD agents are subagents since users interact via slash commands.
+  tomlLines.push(`agent_type = "subagent"`);
+
+  const tomlContent = tomlLines.join('\n') + '\n';
 
   // Replace ${WORD} variables with $WORD in the body for safety, similar to Gemini
   const escapedBody = body.replace(/\$\{(\w+)\}/g, '$$$1').trimStart();
@@ -1164,6 +1173,14 @@ GSD workflows use \`AskUserQuestion\` (Claude Code syntax). Translate to Mistral
 - **Multiple-choice question** (e.g. "Which framework?"):
   Call \`ask_user_question\` with \`question\` AND \`options\` containing at least 2 items.
   ✅ Correct: \`ask_user_question(question="Which framework?", options=["React", "Vue", "Svelte"])\`
+
+## B. Task() → task Mapping
+GSD workflows use \`Task(...)\` (Claude Code syntax) to spawn subagents. Translate this to the Mistral Vibe \`task\` tool:
+
+- Map \`Task(subagent_type="X", prompt="Y")\` to \`task(agent="X", message="Y")\`
+- Note: If the subagent is the built-in "explorer", use \`agent="explore"\`.
+  ✅ Correct: \`task(agent="explore", message="Find references to X")\`
+  ❌ Wrong: \`task(agent="explorer", message="Find references to X")\`
 </mistral_adapter>`;
 }
 
