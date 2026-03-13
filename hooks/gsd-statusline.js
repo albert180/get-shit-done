@@ -13,7 +13,7 @@ let input = '';
 const stdinTimeout = setTimeout(() => process.exit(0), 3000);
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', chunk => input += chunk);
-process.stdin.on('end', () => {
+process.stdin.on('end', async () => {
   clearTimeout(stdinTimeout);
   try {
     const data = JSON.parse(input);
@@ -43,7 +43,7 @@ process.stdin.on('end', () => {
             used_pct: used,
             timestamp: Math.floor(Date.now() / 1000)
           });
-          fs.writeFileSync(bridgePath, bridgeData);
+          await fs.promises.writeFile(bridgePath, bridgeData);
         } catch (e) {
           // Silent fail -- bridge is best-effort, don't break statusline
         }
@@ -71,16 +71,29 @@ process.stdin.on('end', () => {
     // Respect CLAUDE_CONFIG_DIR for custom config directory setups (#870)
     const claudeDir = process.env.CLAUDE_CONFIG_DIR || path.join(homeDir, '.claude');
     const todosDir = path.join(claudeDir, 'todos');
-    if (session && fs.existsSync(todosDir)) {
+
+    let todosDirExists = false;
+    try {
+      await fs.promises.access(todosDir);
+      todosDirExists = true;
+    } catch (e) {}
+
+    if (session && todosDirExists) {
       try {
-        const files = fs.readdirSync(todosDir)
-          .filter(f => f.startsWith(session) && f.includes('-agent-') && f.endsWith('.json'))
-          .map(f => ({ name: f, mtime: fs.statSync(path.join(todosDir, f)).mtime }))
-          .sort((a, b) => b.mtime - a.mtime);
+        const allFiles = await fs.promises.readdir(todosDir);
+        const filteredFiles = allFiles.filter(f => f.startsWith(session) && f.includes('-agent-') && f.endsWith('.json'));
+
+        const filesWithMtime = await Promise.all(filteredFiles.map(async f => {
+          const stats = await fs.promises.stat(path.join(todosDir, f));
+          return { name: f, mtime: stats.mtime };
+        }));
+
+        const files = filesWithMtime.sort((a, b) => b.mtime - a.mtime);
 
         if (files.length > 0) {
           try {
-            const todos = JSON.parse(fs.readFileSync(path.join(todosDir, files[0].name), 'utf8'));
+            const todosContent = await fs.promises.readFile(path.join(todosDir, files[0].name), 'utf8');
+            const todos = JSON.parse(todosContent);
             const inProgress = todos.find(t => t.status === 'in_progress');
             if (inProgress) task = inProgress.activeForm || '';
           } catch (e) {}
@@ -93,9 +106,17 @@ process.stdin.on('end', () => {
     // GSD update available?
     let gsdUpdate = '';
     const cacheFile = path.join(claudeDir, 'cache', 'gsd-update-check.json');
-    if (fs.existsSync(cacheFile)) {
+
+    let cacheFileExists = false;
+    try {
+      await fs.promises.access(cacheFile);
+      cacheFileExists = true;
+    } catch (e) {}
+
+    if (cacheFileExists) {
       try {
-        const cache = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+        const cacheContent = await fs.promises.readFile(cacheFile, 'utf8');
+        const cache = JSON.parse(cacheContent);
         if (cache.update_available) {
           gsdUpdate = '\x1b[33m⬆ /gsd:update\x1b[0m │ ';
         }
