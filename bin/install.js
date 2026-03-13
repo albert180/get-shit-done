@@ -836,14 +836,30 @@ function mergeMistralConfig(configPath) {
     return;
   }
 
-  const existing = fs.readFileSync(configPath, 'utf8');
-  const markerIndex = existing.indexOf(GSD_MISTRAL_MARKER);
+  let existing = fs.readFileSync(configPath, 'utf8');
 
+  // If we already appended our block previously, remove it to start clean
+  const markerIndex = existing.indexOf(GSD_MISTRAL_MARKER);
   if (markerIndex !== -1) {
-    let before = existing.substring(0, markerIndex).trimEnd();
-    fs.writeFileSync(configPath, before + (before ? '\n\n' : '') + gsdBlock + '\n');
+    existing = existing.substring(0, markerIndex).trimEnd();
+  }
+
+  // Look for an existing top-level enabled_skills array
+  const enabledSkillsMatch = existing.match(/^enabled_skills\s*=\s*\[(.*?)\]/m);
+
+  if (enabledSkillsMatch) {
+    const skillsListStr = enabledSkillsMatch[1];
+    if (!skillsListStr.includes('"gsd-*"') && !skillsListStr.includes("'gsd-*'")) {
+      const newListStr = skillsListStr.trim() ? `${skillsListStr}, "gsd-*"` : `"gsd-*"`;
+      existing = existing.replace(/^enabled_skills\s*=\s*\[.*?\]/m, `enabled_skills = [${newListStr}]`);
+      fs.writeFileSync(configPath, existing + '\n');
+    } else {
+      // It's already there
+      fs.writeFileSync(configPath, existing + '\n');
+    }
   } else {
-    fs.writeFileSync(configPath, existing.trimEnd() + '\n\n' + gsdBlock + '\n');
+    // Doesn't exist, append our block
+    fs.writeFileSync(configPath, existing + (existing ? '\n\n' : '') + gsdBlock + '\n');
   }
 }
 
@@ -853,18 +869,37 @@ function mergeMistralConfig(configPath) {
 function stripGsdFromMistralConfig(configPath) {
   if (!fs.existsSync(configPath)) return false;
 
-  const content = fs.readFileSync(configPath, 'utf8');
-  const markerIndex = content.indexOf(GSD_MISTRAL_MARKER);
+  let content = fs.readFileSync(configPath, 'utf8');
+  let modified = false;
 
+  const markerIndex = content.indexOf(GSD_MISTRAL_MARKER);
   if (markerIndex !== -1) {
-    let before = content.substring(0, markerIndex).trimEnd();
-    if (!before) {
-      fs.unlinkSync(configPath);
-      return true;
-    } else {
-      fs.writeFileSync(configPath, before + '\n');
-      return true;
+    content = content.substring(0, markerIndex).trimEnd() + '\n';
+    modified = true;
+  }
+
+  const enabledSkillsMatch = content.match(/^enabled_skills\s*=\s*\[(.*?)\]/m);
+  if (enabledSkillsMatch) {
+    let skillsStr = enabledSkillsMatch[1];
+    if (skillsStr.includes('"gsd-*"') || skillsStr.includes("'gsd-*'")) {
+      skillsStr = skillsStr.replace(/\s*,\s*"gsd-\*"/g, '')
+                           .replace(/"gsd-\*"\s*,\s*/g, '')
+                           .replace(/"gsd-\*"/g, '')
+                           .replace(/\s*,\s*'gsd-\*'/g, '')
+                           .replace(/'gsd-\*'\s*,\s*/g, '')
+                           .replace(/'gsd-\*'/g, '');
+      content = content.replace(/^enabled_skills\s*=\s*\[.*?\]/m, `enabled_skills = [${skillsStr}]`);
+      modified = true;
     }
+  }
+
+  if (modified) {
+    if (!content.trim()) {
+      fs.unlinkSync(configPath);
+    } else {
+      fs.writeFileSync(configPath, content);
+    }
+    return true;
   }
   return false;
 }
@@ -1725,7 +1760,7 @@ function uninstall(isGlobal, runtime = 'claude') {
 
   // 3. Remove GSD agents (gsd-*.md files only)
   const agentsDir = path.join(targetDir, 'agents');
-  if (fs.existsSync(agentsDir) && runtime !== 'mistral' && runtime !== 'codex') {
+  if (fs.existsSync(agentsDir) && runtime !== 'mistral') {
     const files = fs.readdirSync(agentsDir);
     let agentCount = 0;
     for (const file of files) {
