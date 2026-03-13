@@ -594,7 +594,9 @@ function convertClaudeCommandToMistralSkill(content, skillName) {
   }
   yamlFrontmatter += `---`;
 
-  return `${yamlFrontmatter}\n\n${body.trimStart()}`;
+  const adapter = getMistralAdapterHeader();
+
+  return `${yamlFrontmatter}\n\n${adapter}\n\n${body.trimStart()}`;
 }
 
 /**
@@ -1143,7 +1145,26 @@ function convertClaudeToMistralAgent(content) {
   // Replace ${WORD} variables with $WORD in the body for safety, similar to Gemini
   const escapedBody = body.replace(/\$\{(\w+)\}/g, '$$$1').trimStart();
 
-  return { tomlContent, promptContent: escapedBody };
+  const adapter = getMistralAdapterHeader();
+  const finalPromptContent = `${adapter}\n\n${escapedBody}`;
+
+  return { tomlContent, promptContent: finalPromptContent };
+}
+
+function getMistralAdapterHeader() {
+  return `<mistral_adapter>
+## A. AskUserQuestion → ask_user_question Mapping
+GSD workflows use \`AskUserQuestion\` (Claude Code syntax). Translate to Mistral Vibe \`ask_user_question\`:
+
+- **Open-ended / free-text question** (e.g. "What is your project name?"):
+  Call \`ask_user_question\` with ONLY the \`question\` parameter. Do NOT include an \`options\` key at all.
+  ✅ Correct: \`ask_user_question(question="What is your project name?")\`
+  ❌ Wrong: \`ask_user_question(question="...", options=[])\`
+
+- **Multiple-choice question** (e.g. "Which framework?"):
+  Call \`ask_user_question\` with \`question\` AND \`options\` containing at least 2 items.
+  ✅ Correct: \`ask_user_question(question="Which framework?", options=["React", "Vue", "Svelte"])\`
+</mistral_adapter>`;
 }
 
 function convertClaudeToGeminiToml(content) {
