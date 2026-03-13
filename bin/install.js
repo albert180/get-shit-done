@@ -41,6 +41,7 @@ const hasOpencode = args.includes('--opencode');
 const hasClaude = args.includes('--claude');
 const hasGemini = args.includes('--gemini');
 const hasCodex = args.includes('--codex');
+const hasMistral = args.includes('--mistral');
 const hasBoth = args.includes('--both'); // Legacy flag, keeps working
 const hasAll = args.includes('--all');
 const hasUninstall = args.includes('--uninstall') || args.includes('-u');
@@ -48,7 +49,7 @@ const hasUninstall = args.includes('--uninstall') || args.includes('-u');
 // Runtime selection - can be set by flags or interactive prompt
 let selectedRuntimes = [];
 if (hasAll) {
-  selectedRuntimes = ['claude', 'opencode', 'gemini', 'codex'];
+  selectedRuntimes = ['claude', 'opencode', 'gemini', 'codex', 'mistral'];
 } else if (hasBoth) {
   selectedRuntimes = ['claude', 'opencode'];
 } else {
@@ -56,6 +57,7 @@ if (hasAll) {
   if (hasClaude) selectedRuntimes.push('claude');
   if (hasGemini) selectedRuntimes.push('gemini');
   if (hasCodex) selectedRuntimes.push('codex');
+  if (hasMistral) selectedRuntimes.push('mistral');
 }
 
 /**
@@ -78,13 +80,14 @@ function getDirName(runtime) {
   if (runtime === 'opencode') return '.opencode';
   if (runtime === 'gemini') return '.gemini';
   if (runtime === 'codex') return '.codex';
+  if (runtime === 'mistral') return '.vibe';
   return '.claude';
 }
 
 /**
  * Get the config directory path relative to home directory for a runtime
  * Used for templating hooks that use path.join(homeDir, '<configDir>', ...)
- * @param {string} runtime - 'claude', 'opencode', 'gemini', or 'codex'
+ * @param {string} runtime - 'claude', 'opencode', 'gemini', 'codex', or 'mistral'
  * @param {boolean} isGlobal - Whether this is a global install
  */
 function getConfigDirFromHome(runtime, isGlobal) {
@@ -100,6 +103,7 @@ function getConfigDirFromHome(runtime, isGlobal) {
   }
   if (runtime === 'gemini') return "'.gemini'";
   if (runtime === 'codex') return "'.codex'";
+  if (runtime === 'mistral') return "'.vibe'";
   return "'.claude'";
 }
 
@@ -130,8 +134,8 @@ function getOpencodeGlobalDir() {
 
 /**
  * Get the global config directory for a runtime
- * @param {string} runtime - 'claude', 'opencode', 'gemini', or 'codex'
- * @param {string|null} explicitDir - Explicit directory from --config-dir flag
+ * @param {string} runtime - 'claude', 'opencode', 'gemini', 'codex', or 'mistral'
+ * @param {string|null} explicitDir - ExplicitDir Explicit directory from --config-dir flag
  */
 function getGlobalDir(runtime, explicitDir = null) {
   if (runtime === 'opencode') {
@@ -162,6 +166,17 @@ function getGlobalDir(runtime, explicitDir = null) {
       return expandTilde(process.env.CODEX_HOME);
     }
     return path.join(os.homedir(), '.codex');
+  }
+
+  if (runtime === 'mistral') {
+    // Mistral Vibe: --config-dir > VIBE_HOME > ~/.vibe
+    if (explicitDir) {
+      return expandTilde(explicitDir);
+    }
+    if (process.env.VIBE_HOME) {
+      return expandTilde(process.env.VIBE_HOME);
+    }
+    return path.join(os.homedir(), '.vibe');
   }
   
   // Claude Code: --config-dir > CLAUDE_CONFIG_DIR > ~/.claude
@@ -218,7 +233,7 @@ console.log(banner);
 
 // Show help if requested
 if (hasHelp) {
-  console.log(`  ${yellow}Usage:${reset} npx get-shit-done-cc [options]\n\n  ${yellow}Options:${reset}\n    ${cyan}-g, --global${reset}              Install globally (to config directory)\n    ${cyan}-l, --local${reset}               Install locally (to current directory)\n    ${cyan}--claude${reset}                  Install for Claude Code only\n    ${cyan}--opencode${reset}                Install for OpenCode only\n    ${cyan}--gemini${reset}                  Install for Gemini only\n    ${cyan}--codex${reset}                   Install for Codex only\n    ${cyan}--all${reset}                     Install for all runtimes\n    ${cyan}-u, --uninstall${reset}           Uninstall GSD (remove all GSD files)\n    ${cyan}-c, --config-dir <path>${reset}   Specify custom config directory\n    ${cyan}-h, --help${reset}                Show this help message\n    ${cyan}--force-statusline${reset}        Replace existing statusline config\n\n  ${yellow}Examples:${reset}\n    ${dim}# Interactive install (prompts for runtime and location)${reset}\n    npx get-shit-done-cc\n\n    ${dim}# Install for Claude Code globally${reset}\n    npx get-shit-done-cc --claude --global\n\n    ${dim}# Install for Gemini globally${reset}\n    npx get-shit-done-cc --gemini --global\n\n    ${dim}# Install for Codex globally${reset}\n    npx get-shit-done-cc --codex --global\n\n    ${dim}# Install for all runtimes globally${reset}\n    npx get-shit-done-cc --all --global\n\n    ${dim}# Install to custom config directory${reset}\n    npx get-shit-done-cc --codex --global --config-dir ~/.codex-work\n\n    ${dim}# Install to current project only${reset}\n    npx get-shit-done-cc --claude --local\n\n    ${dim}# Uninstall GSD from Codex globally${reset}\n    npx get-shit-done-cc --codex --global --uninstall\n\n  ${yellow}Notes:${reset}\n    The --config-dir option is useful when you have multiple configurations.\n    It takes priority over CLAUDE_CONFIG_DIR / GEMINI_CONFIG_DIR / CODEX_HOME environment variables.\n`);
+  console.log(`  ${yellow}Usage:${reset} npx get-shit-done-cc [options]\n\n  ${yellow}Options:${reset}\n    ${cyan}-g, --global${reset}              Install globally (to config directory)\n    ${cyan}-l, --local${reset}               Install locally (to current directory)\n    ${cyan}--claude${reset}                  Install for Claude Code only\n    ${cyan}--opencode${reset}                Install for OpenCode only\n    ${cyan}--gemini${reset}                  Install for Gemini only\n    ${cyan}--codex${reset}                   Install for Codex only\n    ${cyan}--mistral${reset}                 Install for Mistral Vibe only\n    ${cyan}--all${reset}                     Install for all runtimes\n    ${cyan}-u, --uninstall${reset}           Uninstall GSD (remove all GSD files)\n    ${cyan}-c, --config-dir <path>${reset}   Specify custom config directory\n    ${cyan}-h, --help${reset}                Show this help message\n    ${cyan}--force-statusline${reset}        Replace existing statusline config\n\n  ${yellow}Examples:${reset}\n    ${dim}# Interactive install (prompts for runtime and location)${reset}\n    npx get-shit-done-cc\n\n    ${dim}# Install for Claude Code globally${reset}\n    npx get-shit-done-cc --claude --global\n\n    ${dim}# Install for Gemini globally${reset}\n    npx get-shit-done-cc --gemini --global\n\n    ${dim}# Install for Codex globally${reset}\n    npx get-shit-done-cc --codex --global\n\n    ${dim}# Install for Mistral Vibe globally${reset}\n    npx get-shit-done-cc --mistral --global\n\n    ${dim}# Install for all runtimes globally${reset}\n    npx get-shit-done-cc --all --global\n\n    ${dim}# Install to custom config directory${reset}\n    npx get-shit-done-cc --codex --global --config-dir ~/.codex-work\n\n    ${dim}# Install to current project only${reset}\n    npx get-shit-done-cc --claude --local\n\n    ${dim}# Uninstall GSD from Codex globally${reset}\n    npx get-shit-done-cc --codex --global --uninstall\n\n  ${yellow}Notes:${reset}\n    The --config-dir option is useful when you have multiple configurations.\n    It takes priority over CLAUDE_CONFIG_DIR / GEMINI_CONFIG_DIR / CODEX_HOME / VIBE_HOME environment variables.\n`);
   process.exit(0);
 }
 
@@ -379,6 +394,19 @@ const claudeToGeminiTools = {
   AskUserQuestion: 'ask_user',
 };
 
+// Tool name mapping from Claude Code to Mistral Vibe
+const claudeToMistralTools = {
+  Read: 'read_file',
+  Write: 'write_file',
+  Edit: 'search_replace',
+  MultiEdit: 'search_replace',
+  Bash: 'bash',
+  Glob: 'grep',
+  Grep: 'grep',
+  AskUserQuestion: 'ask_user_question',
+  Task: 'task'
+};
+
 /**
  * Convert a Claude Code tool name to OpenCode format
  * - Applies special mappings (AskUserQuestion -> question, etc.)
@@ -524,6 +552,54 @@ function convertClaudeCommandToCodexSkill(content, skillName) {
   const adapter = getCodexSkillAdapterHeader(skillName);
 
   return `---\nname: ${yamlQuote(skillName)}\ndescription: ${yamlQuote(description)}\nmetadata:\n  short-description: ${yamlQuote(shortDescription)}\n---\n\n${adapter}\n\n${body.trimStart()}`;
+}
+
+function convertClaudeCommandToMistralSkill(content, skillName) {
+  let converted = content.replace(/\/gsd:/g, '/gsd-');
+  // Fix the explorer agent name for Mistral Vibe
+  converted = converted.replace(/subagent_type="explorer"/g, 'subagent_type="explore"');
+
+  const { frontmatter, body } = extractFrontmatterAndBody(converted);
+  let description = `Run GSD workflow ${skillName}.`;
+  let allowedTools = [];
+
+  if (frontmatter) {
+    const maybeDescription = extractFrontmatterField(frontmatter, 'description');
+    if (maybeDescription) {
+      description = maybeDescription;
+    }
+
+    // Attempt to extract tools if present
+    const lines = frontmatter.split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('tools:')) {
+        const toolsValue = trimmed.substring(6).trim();
+        if (toolsValue) {
+          const parsed = toolsValue.split(',').map(t => t.trim()).filter(t => t);
+          for (const t of parsed) {
+            const mapped = convertMistralToolName(t);
+            if (mapped && !allowedTools.includes(mapped)) allowedTools.push(mapped);
+          }
+        }
+      }
+    }
+  }
+
+  description = toSingleLine(description);
+
+  let yamlFrontmatter = `---\nname: ${skillName}\ndescription: ${yamlQuote(description)}\nlicense: MIT\nuser-invocable: true\n`;
+  if (allowedTools.length > 0) {
+    yamlFrontmatter += `allowed-tools:\n`;
+    for (const tool of allowedTools) {
+      yamlFrontmatter += `  - ${tool}\n`;
+    }
+  }
+  yamlFrontmatter += `---`;
+
+  const adapter = getMistralAdapterHeader();
+
+  return `${yamlFrontmatter}\n\n${adapter}\n\n${body.trimStart()}`;
 }
 
 /**
@@ -739,6 +815,93 @@ function installCodexConfig(targetDir, agentsSrc) {
   mergeCodexConfig(configPath, gsdBlock);
 
   return agents.length;
+}
+
+const GSD_MISTRAL_MARKER = '# === get-shit-done config ===';
+
+/**
+ * Merge GSD config block into Mistral Vibe config.toml idempotently
+ */
+function mergeMistralConfig(configPath) {
+  const gsdBlock = [
+    GSD_MISTRAL_MARKER,
+    '# Skills (Slash Commands)',
+    'enabled_skills = ["gsd-*"]',
+    ''
+  ].join('\n');
+
+  if (!fs.existsSync(configPath)) {
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    fs.writeFileSync(configPath, gsdBlock + '\n');
+    return;
+  }
+
+  let existing = fs.readFileSync(configPath, 'utf8');
+
+  // If we already appended our block previously, remove it to start clean
+  const markerIndex = existing.indexOf(GSD_MISTRAL_MARKER);
+  if (markerIndex !== -1) {
+    existing = existing.substring(0, markerIndex).trimEnd();
+  }
+
+  // Look for an existing top-level enabled_skills array
+  const enabledSkillsMatch = existing.match(/^enabled_skills\s*=\s*\[(.*?)\]/m);
+
+  if (enabledSkillsMatch) {
+    const skillsListStr = enabledSkillsMatch[1];
+    if (!skillsListStr.includes('"gsd-*"') && !skillsListStr.includes("'gsd-*'")) {
+      const newListStr = skillsListStr.trim() ? `${skillsListStr}, "gsd-*"` : `"gsd-*"`;
+      existing = existing.replace(/^enabled_skills\s*=\s*\[.*?\]/m, `enabled_skills = [${newListStr}]`);
+      fs.writeFileSync(configPath, existing + '\n');
+    } else {
+      // It's already there
+      fs.writeFileSync(configPath, existing + '\n');
+    }
+  } else {
+    // Doesn't exist, append our block
+    fs.writeFileSync(configPath, existing + (existing ? '\n\n' : '') + gsdBlock + '\n');
+  }
+}
+
+/**
+ * Strip GSD config block from Mistral Vibe config.toml
+ */
+function stripGsdFromMistralConfig(configPath) {
+  if (!fs.existsSync(configPath)) return false;
+
+  let content = fs.readFileSync(configPath, 'utf8');
+  let modified = false;
+
+  const markerIndex = content.indexOf(GSD_MISTRAL_MARKER);
+  if (markerIndex !== -1) {
+    content = content.substring(0, markerIndex).trimEnd() + '\n';
+    modified = true;
+  }
+
+  const enabledSkillsMatch = content.match(/^enabled_skills\s*=\s*\[(.*?)\]/m);
+  if (enabledSkillsMatch) {
+    let skillsStr = enabledSkillsMatch[1];
+    if (skillsStr.includes('"gsd-*"') || skillsStr.includes("'gsd-*'")) {
+      skillsStr = skillsStr.replace(/\s*,\s*"gsd-\*"/g, '')
+                           .replace(/"gsd-\*"\s*,\s*/g, '')
+                           .replace(/"gsd-\*"/g, '')
+                           .replace(/\s*,\s*'gsd-\*'/g, '')
+                           .replace(/'gsd-\*'\s*,\s*/g, '')
+                           .replace(/'gsd-\*'/g, '');
+      content = content.replace(/^enabled_skills\s*=\s*\[.*?\]/m, `enabled_skills = [${skillsStr}]`);
+      modified = true;
+    }
+  }
+
+  if (modified) {
+    if (!content.trim()) {
+      fs.unlinkSync(configPath);
+    } else {
+      fs.writeFileSync(configPath, content);
+    }
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -965,6 +1128,109 @@ function convertClaudeToOpencodeFrontmatter(content) {
  * @param {string} content - Markdown file content with YAML frontmatter
  * @returns {string} - TOML content
  */
+/**
+ * Convert a Claude Code tool name to Mistral Vibe format
+ * @returns {string|null} Mistral tool name, or null if tool should be excluded
+ */
+function convertMistralToolName(claudeTool) {
+  if (claudeTool.startsWith('mcp__')) {
+    return null;
+  }
+  if (claudeToMistralTools[claudeTool]) {
+    return claudeToMistralTools[claudeTool];
+  }
+  return claudeTool.toLowerCase();
+}
+
+/**
+ * Convert Claude Code agent frontmatter to Mistral Vibe format
+ * Vibe uses a .toml file for the agent and a .md file for the system prompt.
+ * This function returns both.
+ */
+function convertClaudeToMistralAgent(content) {
+  let converted = content;
+
+  // Apply the same codebase markdown conversions
+  converted = converted.replace(/\/gsd:/g, '/gsd-');
+
+  const { frontmatter, body } = extractFrontmatterAndBody(converted);
+
+  const name = frontmatter ? extractFrontmatterField(frontmatter, 'name') || 'unknown' : 'unknown';
+  const description = frontmatter ? extractFrontmatterField(frontmatter, 'description') || '' : '';
+  const toolsStr = frontmatter ? extractFrontmatterField(frontmatter, 'tools') || '' : '';
+
+  const tools = [];
+  if (toolsStr) {
+    const parsed = toolsStr.split(',').map(t => t.trim()).filter(t => t);
+    for (const t of parsed) {
+      const mapped = convertMistralToolName(t);
+      if (mapped && !tools.includes(mapped)) tools.push(mapped);
+    }
+  }
+
+  const cleanDescription = toSingleLine(description);
+
+  const tomlLines = [
+    `display_name = "${name}"`,
+    `description = "${cleanDescription}"`,
+    `system_prompt_id = "${name}"`,
+    `safety = "neutral"`,
+    `auto_approve = false`,
+    `disabled_tools = []`,
+    `enabled_tools = ${JSON.stringify(tools)}`
+  ];
+
+  // If this agent is used as a subagent (it's not the user's primary interface), mark it as subagent.
+  // We can assume all GSD agents are subagents since users interact via slash commands.
+  tomlLines.push(`agent_type = "subagent"`);
+
+  const tomlContent = tomlLines.join('\n') + '\n';
+
+  // Replace ${WORD} variables with $WORD in the body for safety, similar to Gemini
+  const escapedBody = body.replace(/\$\{(\w+)\}/g, '$$$1').trimStart();
+
+  const adapter = getMistralAdapterHeader();
+  const finalPromptContent = `${adapter}\n\n${escapedBody}`;
+
+  return { tomlContent, promptContent: finalPromptContent };
+}
+
+function getMistralAdapterHeader() {
+  return `<mistral_adapter>
+## A. AskUserQuestion → ask_user_question Mapping
+GSD workflows use \`AskUserQuestion\` (Claude Code syntax). Translate to Mistral Vibe \`ask_user_question\`:
+
+\`ask_user_question\` takes a \`questions\` list. Each question object MUST have \`options\` with 2-4 items. Vibe automatically appends an "Other" option that allows free-text input.
+
+- **For open-ended questions** (e.g. "What is your project name?"):
+  Provide 2 placeholder options that cover common cases, so the user can either pick one or use "Other" to type freely.
+  ✅ Correct:
+  ask_user_question(questions=[{
+    "question": "What is your project name?",
+    "options": [
+      {"label": "my-project"},
+      {"label": "Enter a custom name (select Other)"}
+    ]
+  }])
+  ❌ Wrong — causes Pydantic validation error:
+  ask_user_question(questions=[{"question": "...", "options": None}])
+  ask_user_question(questions=[{"question": "...", "options": []}])
+  ask_user_question(questions=[{"question": "...", "options": [{"label": "only one"}]}])
+
+- **Multiple-choice question** (e.g. "Which framework?"):
+  Call \`ask_user_question\` with \`question\` AND \`options\` containing at least 2 items.
+  ✅ Correct: \`ask_user_question(questions=[{"question": "Which framework?", "options": [{"label": "React"}, {"label": "Vue"}, {"label": "Svelte"}]}])\`
+
+## B. Task() → task Mapping
+GSD workflows use \`Task(...)\` (Claude Code syntax) to spawn subagents. Translate this to the Mistral Vibe \`task\` tool:
+
+- Map \`Task(subagent_type="X", prompt="Y")\` to \`task(agent="X", message="Y")\`
+- Note: If the subagent is the built-in "explorer", use \`agent="explore"\`.
+  ✅ Correct: \`task(agent="explore", message="Find references to X")\`
+  ❌ Wrong: \`task(agent="explorer", message="Find references to X")\`
+</mistral_adapter>`;
+}
+
 function convertClaudeToGeminiToml(content) {
   // Check if content has frontmatter
   if (!content.startsWith('---')) {
@@ -1115,6 +1381,57 @@ function copyCommandsAsCodexSkills(srcDir, skillsDir, prefix, pathPrefix, runtim
       content = content.replace(codexDirRegex, pathPrefix);
       content = processAttribution(content, getCommitAttribution(runtime));
       content = convertClaudeCommandToCodexSkill(content, skillName);
+
+      fs.writeFileSync(path.join(skillDir, 'SKILL.md'), content);
+    }
+  }
+
+  recurse(srcDir, prefix);
+}
+
+function copyCommandsAsMistralSkills(srcDir, skillsDir, prefix, pathPrefix, runtime) {
+  if (!fs.existsSync(srcDir)) {
+    return;
+  }
+
+  fs.mkdirSync(skillsDir, { recursive: true });
+
+  // Remove previous GSD Mistral skills to avoid stale command skills.
+  const existing = fs.readdirSync(skillsDir, { withFileTypes: true });
+  for (const entry of existing) {
+    if (entry.isDirectory() && entry.name.startsWith(`${prefix}-`)) {
+      fs.rmSync(path.join(skillsDir, entry.name), { recursive: true });
+    }
+  }
+
+  function recurse(currentSrcDir, currentPrefix) {
+    const entries = fs.readdirSync(currentSrcDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const srcPath = path.join(currentSrcDir, entry.name);
+      if (entry.isDirectory()) {
+        recurse(srcPath, `${currentPrefix}-${entry.name}`);
+        continue;
+      }
+
+      if (!entry.name.endsWith('.md')) {
+        continue;
+      }
+
+      const baseName = entry.name.replace('.md', '');
+      const skillName = `${currentPrefix}-${baseName}`;
+      const skillDir = path.join(skillsDir, skillName);
+      fs.mkdirSync(skillDir, { recursive: true });
+
+      let content = fs.readFileSync(srcPath, 'utf8');
+      const globalClaudeRegex = /~\/\.claude\//g;
+      const globalClaudeHomeRegex = /\$HOME\/\.claude\//g;
+      const localClaudeRegex = /\.\/\.claude\//g;
+      content = content.replace(globalClaudeRegex, pathPrefix);
+      content = content.replace(globalClaudeHomeRegex, toHomePrefix(pathPrefix));
+      content = content.replace(localClaudeRegex, `./${getDirName(runtime)}/`);
+      content = processAttribution(content, getCommitAttribution(runtime));
+      content = convertClaudeCommandToMistralSkill(content, skillName);
 
       fs.writeFileSync(path.join(skillDir, 'SKILL.md'), content);
     }
@@ -1287,6 +1604,7 @@ function uninstall(isGlobal, runtime = 'claude') {
   if (runtime === 'opencode') runtimeLabel = 'OpenCode';
   if (runtime === 'gemini') runtimeLabel = 'Gemini';
   if (runtime === 'codex') runtimeLabel = 'Codex';
+  if (runtime === 'mistral') runtimeLabel = 'Mistral Vibe';
 
   console.log(`  Uninstalling GSD from ${cyan}${runtimeLabel}${reset} at ${cyan}${locationLabel}${reset}\n`);
 
@@ -1364,6 +1682,64 @@ function uninstall(isGlobal, runtime = 'claude') {
         console.log(`  ${green}✓${reset} Cleaned GSD sections from config.toml`);
       }
     }
+  } else if (runtime === 'mistral') {
+    // Mistral Vibe: remove skills/gsd-* skill directories
+    const skillsDir = path.join(targetDir, 'skills');
+    if (fs.existsSync(skillsDir)) {
+      let skillCount = 0;
+      const entries = fs.readdirSync(skillsDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory() && entry.name.startsWith('gsd-')) {
+          fs.rmSync(path.join(skillsDir, entry.name), { recursive: true });
+          skillCount++;
+        }
+      }
+      if (skillCount > 0) {
+        removedCount++;
+        console.log(`  ${green}✓${reset} Removed ${skillCount} Mistral skills`);
+      }
+    }
+
+    // Mistral Vibe: remove GSD agent .toml configs
+    const agentsDir = path.join(targetDir, 'agents');
+    if (fs.existsSync(agentsDir)) {
+      const files = fs.readdirSync(agentsDir);
+      let tomlCount = 0;
+      for (const file of files) {
+        if (file.startsWith('gsd-') && file.endsWith('.toml')) {
+          fs.unlinkSync(path.join(agentsDir, file));
+          tomlCount++;
+        }
+      }
+      if (tomlCount > 0) {
+        removedCount++;
+        console.log(`  ${green}✓${reset} Removed ${tomlCount} agent .toml configs`);
+      }
+    }
+
+    // Mistral Vibe: remove GSD system prompts
+    const promptsDir = path.join(targetDir, 'prompts');
+    if (fs.existsSync(promptsDir)) {
+      const files = fs.readdirSync(promptsDir);
+      let promptCount = 0;
+      for (const file of files) {
+        if (file.startsWith('gsd-') && file.endsWith('.md')) {
+          fs.unlinkSync(path.join(promptsDir, file));
+          promptCount++;
+        }
+      }
+      if (promptCount > 0) {
+        removedCount++;
+        console.log(`  ${green}✓${reset} Removed ${promptCount} system prompts`);
+      }
+    }
+
+    // Mistral Vibe: clean GSD block from config.toml
+    const configPath = path.join(targetDir, 'config.toml');
+    if (stripGsdFromMistralConfig(configPath)) {
+      removedCount++;
+      console.log(`  ${green}✓${reset} Cleaned GSD block from config.toml`);
+    }
   } else {
     // Claude Code & Gemini: remove commands/gsd/ directory
     const gsdCommandsDir = path.join(targetDir, 'commands', 'gsd');
@@ -1384,7 +1760,7 @@ function uninstall(isGlobal, runtime = 'claude') {
 
   // 3. Remove GSD agents (gsd-*.md files only)
   const agentsDir = path.join(targetDir, 'agents');
-  if (fs.existsSync(agentsDir)) {
+  if (fs.existsSync(agentsDir) && runtime !== 'mistral') {
     const files = fs.readdirSync(agentsDir);
     let agentCount = 0;
     for (const file of files) {
@@ -1893,6 +2269,7 @@ function install(isGlobal, runtime = 'claude') {
   const isOpencode = runtime === 'opencode';
   const isGemini = runtime === 'gemini';
   const isCodex = runtime === 'codex';
+  const isMistral = runtime === 'mistral';
   const dirName = getDirName(runtime);
   const src = path.join(__dirname, '..');
 
@@ -1916,6 +2293,7 @@ function install(isGlobal, runtime = 'claude') {
   if (isOpencode) runtimeLabel = 'OpenCode';
   if (isGemini) runtimeLabel = 'Gemini';
   if (isCodex) runtimeLabel = 'Codex';
+  if (isMistral) runtimeLabel = 'Mistral Vibe';
 
   console.log(`  Installing for ${cyan}${runtimeLabel}${reset} to ${cyan}${locationLabel}${reset}\n`);
 
@@ -1928,7 +2306,7 @@ function install(isGlobal, runtime = 'claude') {
   // Clean up orphaned files from previous versions
   cleanupOrphanedFiles(targetDir);
 
-  // OpenCode uses command/ (flat), Codex uses skills/, Claude/Gemini use commands/gsd/
+  // OpenCode uses command/ (flat), Codex/Mistral uses skills/, Claude/Gemini use commands/gsd/
   if (isOpencode) {
     // OpenCode: flat structure in command/ directory
     const commandDir = path.join(targetDir, 'command');
@@ -1947,6 +2325,16 @@ function install(isGlobal, runtime = 'claude') {
     const skillsDir = path.join(targetDir, 'skills');
     const gsdSrc = path.join(src, 'commands', 'gsd');
     copyCommandsAsCodexSkills(gsdSrc, skillsDir, 'gsd', pathPrefix, runtime);
+    const installedSkillNames = listCodexSkillNames(skillsDir);
+    if (installedSkillNames.length > 0) {
+      console.log(`  ${green}✓${reset} Installed ${installedSkillNames.length} skills to skills/`);
+    } else {
+      failures.push('skills/gsd-*');
+    }
+  } else if (isMistral) {
+    const skillsDir = path.join(targetDir, 'skills');
+    const gsdSrc = path.join(src, 'commands', 'gsd');
+    copyCommandsAsMistralSkills(gsdSrc, skillsDir, 'gsd', pathPrefix, runtime);
     const installedSkillNames = listCodexSkillNames(skillsDir);
     if (installedSkillNames.length > 0) {
       console.log(`  ${green}✓${reset} Installed ${installedSkillNames.length} skills to skills/`);
@@ -1984,10 +2372,16 @@ function install(isGlobal, runtime = 'claude') {
     const agentsDest = path.join(targetDir, 'agents');
     fs.mkdirSync(agentsDest, { recursive: true });
 
-    // Remove old GSD agents (gsd-*.md) before copying new ones
+    let promptsDest;
+    if (isMistral) {
+      promptsDest = path.join(targetDir, 'prompts');
+      fs.mkdirSync(promptsDest, { recursive: true });
+    }
+
+    // Remove old GSD agents (gsd-*.md or gsd-*.toml) before copying new ones
     if (fs.existsSync(agentsDest)) {
       for (const file of fs.readdirSync(agentsDest)) {
-        if (file.startsWith('gsd-') && file.endsWith('.md')) {
+        if (file.startsWith('gsd-') && (file.endsWith('.md') || file.endsWith('.toml'))) {
           fs.unlinkSync(path.join(agentsDest, file));
         }
       }
@@ -2007,18 +2401,32 @@ function install(isGlobal, runtime = 'claude') {
         // Convert frontmatter for runtime compatibility
         if (isOpencode) {
           content = convertClaudeToOpencodeFrontmatter(content);
+          fs.writeFileSync(path.join(agentsDest, entry.name), content);
         } else if (isGemini) {
           content = convertClaudeToGeminiAgent(content);
+          fs.writeFileSync(path.join(agentsDest, entry.name), content);
         } else if (isCodex) {
           content = convertClaudeAgentToCodexAgent(content);
+          fs.writeFileSync(path.join(agentsDest, entry.name), content);
+        } else if (isMistral) {
+          const { tomlContent, promptContent } = convertClaudeToMistralAgent(content);
+          const baseName = entry.name.replace('.md', '');
+          fs.writeFileSync(path.join(agentsDest, `${baseName}.toml`), tomlContent);
+          fs.writeFileSync(path.join(promptsDest, `${baseName}.md`), promptContent);
+        } else {
+          fs.writeFileSync(path.join(agentsDest, entry.name), content);
         }
-        fs.writeFileSync(path.join(agentsDest, entry.name), content);
       }
     }
     if (verifyInstalled(agentsDest, 'agents')) {
       console.log(`  ${green}✓${reset} Installed agents`);
     } else {
       failures.push('agents');
+    }
+    if (isMistral && verifyInstalled(promptsDest, 'prompts')) {
+      console.log(`  ${green}✓${reset} Installed prompts`);
+    } else if (isMistral) {
+      failures.push('prompts');
     }
   }
 
@@ -2043,7 +2451,7 @@ function install(isGlobal, runtime = 'claude') {
     failures.push('VERSION');
   }
 
-  if (!isCodex) {
+  if (!isCodex && !isMistral) {
     // Write package.json to force CommonJS mode for GSD scripts
     // Prevents "require is not defined" errors when project has "type": "module"
     // Node.js walks up looking for package.json - this stops inheritance from project
@@ -2134,6 +2542,12 @@ function install(isGlobal, runtime = 'claude') {
     return { settingsPath: null, settings: null, statuslineCommand: null, runtime };
   }
 
+  if (isMistral) {
+    mergeMistralConfig(path.join(targetDir, 'config.toml'));
+    console.log(`  ${green}✓${reset} Merged GSD block into config.toml`);
+    return { settingsPath: null, settings: null, statuslineCommand: null, runtime };
+  }
+
   // Configure statusline and hooks in settings.json
   // Gemini uses AfterTool instead of PostToolUse for post-tool hooks
   const postToolEvent = runtime === 'gemini' ? 'AfterTool' : 'PostToolUse';
@@ -2216,8 +2630,9 @@ function install(isGlobal, runtime = 'claude') {
 function finishInstall(settingsPath, settings, statuslineCommand, shouldInstallStatusline, runtime = 'claude', isGlobal = true) {
   const isOpencode = runtime === 'opencode';
   const isCodex = runtime === 'codex';
+  const isMistral = runtime === 'mistral';
 
-  if (shouldInstallStatusline && !isOpencode && !isCodex) {
+  if (shouldInstallStatusline && !isOpencode && !isCodex && !isMistral) {
     settings.statusLine = {
       type: 'command',
       command: statuslineCommand
@@ -2226,7 +2641,7 @@ function finishInstall(settingsPath, settings, statuslineCommand, shouldInstallS
   }
 
   // Write settings when runtime supports settings.json
-  if (!isCodex) {
+  if (!isCodex && !isMistral) {
     writeSettings(settingsPath, settings);
   }
 
@@ -2239,10 +2654,12 @@ function finishInstall(settingsPath, settings, statuslineCommand, shouldInstallS
   if (runtime === 'opencode') program = 'OpenCode';
   if (runtime === 'gemini') program = 'Gemini';
   if (runtime === 'codex') program = 'Codex';
+  if (runtime === 'mistral') program = 'Mistral Vibe';
 
   let command = '/gsd:new-project';
   if (runtime === 'opencode') command = '/gsd-new-project';
   if (runtime === 'codex') command = '$gsd-new-project';
+  if (runtime === 'mistral') command = '/gsd-new-project';
   console.log(`
   ${green}Done!${reset} Open a blank directory in ${program} and run ${cyan}${command}${reset}.
 
@@ -2324,15 +2741,18 @@ function promptRuntime(callback) {
   ${cyan}2${reset}) OpenCode    ${dim}(~/.config/opencode)${reset} - open source, free models
   ${cyan}3${reset}) Gemini      ${dim}(~/.gemini)${reset}
   ${cyan}4${reset}) Codex       ${dim}(~/.codex)${reset}
-  ${cyan}5${reset}) All
+  ${cyan}5${reset}) Mistral Vibe${dim}(~/.vibe)${reset}
+  ${cyan}6${reset}) All
 `);
 
   rl.question(`  Choice ${dim}[1]${reset}: `, (answer) => {
     answered = true;
     rl.close();
     const choice = answer.trim() || '1';
-    if (choice === '5') {
-      callback(['claude', 'opencode', 'gemini', 'codex']);
+    if (choice === '6') {
+      callback(['claude', 'opencode', 'gemini', 'codex', 'mistral']);
+    } else if (choice === '5') {
+      callback(['mistral']);
     } else if (choice === '4') {
       callback(['codex']);
     } else if (choice === '3') {

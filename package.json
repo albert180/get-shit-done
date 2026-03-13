@@ -23,7 +23,9 @@
     "gemini",
     "gemini-cli",
     "codex",
-    "codex-cli"
+    "codex-cli",
+    "mistral",
+    "mistral-vibe"
   ],
   "author": "TÂCHES",
   "license": "MIT",
